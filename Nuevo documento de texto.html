@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -12,20 +12,33 @@
             font-weight: bold;
             margin-top: 10px;
         }
+        .blinking {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
     </style>
 </head>
 <body>
     <h1>Control de Presencia con Saludo</h1>
     <button onclick="connectSerial()">Conectar Arduino</button>
+    <button onclick="disconnectSerial()">Desconectar Arduino</button>
     <p id="status">No conectado</p>
     <p id="message"></p>
+
+    <!-- Reproductor de audio oculto -->
+    <audio id="greetingAudio">
+        <source id="audioSource" src="" type="audio/mpeg">
+        Tu navegador no soporta la reproducción de audio.
+    </audio>
 
     <script>
         let port;
         let reader;
-        let isGreetingDone = false;  // Para controlar el saludo solo una vez por presencia
+        let isGreetingDone = false;
+        let isAudioPlaying = false;  // Nueva variable para controlar la reproducción del audio
 
-        // Conectar al puerto serial
         async function connectSerial() {
             try {
                 port = await navigator.serial.requestPort();
@@ -33,7 +46,7 @@
                 console.log('Conectado al puerto serial');
                 document.getElementById('status').textContent = 'Conectado';
                 document.getElementById('status').style.color = 'green';
-                monitorSensor();  // Comenzar a monitorear el sensor
+                monitorSensor();  
             } catch (error) {
                 console.error('Error al conectar:', error);
                 document.getElementById('status').textContent = 'Error al conectar';
@@ -43,7 +56,22 @@
             }
         }
 
-        // Monitorear el sensor ultrasónico
+        async function disconnectSerial() {
+            try {
+                if (port) {
+                    await port.close();
+                    console.log('Desconectado del puerto serial');
+                    document.getElementById('status').textContent = 'No conectado';
+                    document.getElementById('status').style.color = 'red';
+                    document.getElementById('message').textContent = '';
+                }
+            } catch (error) {
+                console.error('Error al desconectar:', error);
+                document.getElementById('message').textContent = 'Error al desconectar: ' + error;
+                document.getElementById('message').style.color = 'orange';
+            }
+        }
+
         async function monitorSensor() {
             try {
                 reader = port.readable.getReader();
@@ -58,11 +86,12 @@
                     if (value) {
                         const sensorData = new TextDecoder().decode(value).trim();
                         console.log("Datos del sensor:", sensorData);
-                        if (sensorData === "1" && !isGreetingDone) {
-                            greetUser();  // Saludar si detecta presencia
-                            isGreetingDone = true;  // Solo saluda una vez hasta que se ausente
+                        if (sensorData === "1" && !isGreetingDone && !isAudioPlaying) {
+                            playGreeting();  
+                        } else if (sensorData === "2" && !isGreetingDone && !isAudioPlaying) {
+                            playFarewell();  
                         } else if (sensorData === "0") {
-                            isGreetingDone = false;  // Resetear cuando no haya presencia
+                            isGreetingDone = false;  
                         }
                     }
                 }
@@ -75,14 +104,57 @@
             }
         }
 
-        // Función para saludar al usuario
-        function greetUser() {
-            const speech = new SpeechSynthesisUtterance();
-            speech.lang = 'es-ES';
-            speech.text = 'Hola, bienvenido!';
-            window.speechSynthesis.speak(speech);
-            document.getElementById('message').textContent = 'Saludando...';
+        function playGreeting() {
+            const greeting = getGreeting();  
+            const audio = document.getElementById('greetingAudio');
+            const audioSource = document.getElementById('audioSource');
+            document.getElementById('message').textContent = greeting;
             document.getElementById('message').style.color = 'green';
+            document.getElementById('message').classList.add('blinking');
+
+            // Cambiar la ruta del audio según la hora del día
+            if (greeting === "Buenos días") {
+                audioSource.src = "buenos_dias.mp3";
+            } else if (greeting === "Buenas tardes") {
+                audioSource.src = "buenas_tardes.mp3";
+            } else if (greeting === "Buenas noches") {
+                audioSource.src = "buenas_noches.mp3";
+            }
+
+            audio.load();  // Cargar el nuevo archivo de audio
+            isAudioPlaying = true;  // Marcar que el audio está reproduciéndose
+            audio.play();  // Reproducir el audio
+
+            audio.onended = function() {
+                isAudioPlaying = false;  // Marcar que el audio ha terminado
+                document.getElementById('message').classList.remove('blinking');
+            };
+        }
+
+        function playFarewell() {
+            const audio = document.getElementById('greetingAudio');
+            const audioSource = document.getElementById('audioSource');
+            audioSource.src = "hasta_luego.mp3"; // Cambia esto por la ruta correcta de tu audio de despedida
+            audio.load();  // Cargar el nuevo archivo de audio
+            isAudioPlaying = true;  // Marcar que el audio está reproduciéndose
+            audio.play();  // Reproducir el audio
+
+            audio.onended = function() {
+                isAudioPlaying = false;  // Marcar que el audio ha terminado
+            };
+        }
+
+        function getGreeting() {
+            const now = new Date();
+            const hour = now.getHours();
+
+            if (hour >= 6 && hour < 12) {
+                return "Buenos días";
+            } else if (hour >= 12 && hour < 18) {
+                return "Buenas tardes";
+            } else {
+                return "Buenas noches";
+            }
         }
     </script>
 </body>
