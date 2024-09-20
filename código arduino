@@ -1,0 +1,42 @@
+// Definir los pines para el sensor HC-SR04
+const int triggerPin = 9;  // Pin para el Trigger del HC-SR04
+const int echoPin = 10;    // Pin para el Echo del HC-SR04
+
+// Variables
+long duration;
+int distance;
+int maxDistance = 400;     // Distancia máxima en cm (400 cm = 4 metros)
+int detectionThreshold = 100;  // Distancia a partir de la cual consideramos que se detectó presencia
+
+void setup() {
+  // Iniciar la comunicación serial
+  Serial.begin(9600);
+  
+  // Configurar los pines
+  pinMode(triggerPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+}
+
+void loop() {
+  // Enviar un pulso de Trigger de 10us para iniciar la medición
+  digitalWrite(triggerPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(triggerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(triggerPin, LOW);
+  
+  // Leer la duración del pulso en el pin Echo
+  duration = pulseIn(echoPin, HIGH, maxDistance * 58);  // Limitar el tiempo de espera para distancias largas
+  
+  // Convertir la duración a distancia en cm
+  distance = duration * 0.034 / 2;
+  
+  // Si la distancia está dentro del rango detectable, enviamos el valor correspondiente
+  if (distance > 0 && distance <= detectionThreshold) {
+    Serial.println("1");  // Presencia detectada
+  } else if (distance > detectionThreshold) {
+    Serial.println("0");  // No hay presencia
+  }
+
+  // No hay retraso en el loop, lo que permite lecturas continuas
+}
