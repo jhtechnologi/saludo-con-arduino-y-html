@@ -1,0 +1,90 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saludo por Presencia</title>
+    <style>
+        #status {
+            color: red;
+        }
+        #message {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Control de Presencia con Saludo</h1>
+    <button onclick="connectSerial()">Conectar Arduino</button>
+    <p id="status">No conectado</p>
+    <p id="message"></p>
+
+    <script>
+        let port;
+        let reader;
+        let isGreetingDone = false;  // Para controlar el saludo solo una vez por presencia
+
+        // Conectar al puerto serial
+        async function connectSerial() {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+                console.log('Conectado al puerto serial');
+                document.getElementById('status').textContent = 'Conectado';
+                document.getElementById('status').style.color = 'green';
+                monitorSensor();  // Comenzar a monitorear el sensor
+            } catch (error) {
+                console.error('Error al conectar:', error);
+                document.getElementById('status').textContent = 'Error al conectar';
+                document.getElementById('status').style.color = 'red';
+                document.getElementById('message').textContent = 'Error al conectar: ' + error;
+                document.getElementById('message').style.color = 'orange';
+            }
+        }
+
+        // Monitorear el sensor ultrasónico
+        async function monitorSensor() {
+            try {
+                reader = port.readable.getReader();
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        console.log("Conexión cerrada");
+                        document.getElementById('status').textContent = 'No conectado';
+                        document.getElementById('status').style.color = 'red';
+                        break;
+                    }
+                    if (value) {
+                        const sensorData = new TextDecoder().decode(value).trim();
+                        console.log("Datos del sensor:", sensorData);
+                        if (sensorData === "1" && !isGreetingDone) {
+                            greetUser();  // Saludar si detecta presencia
+                            isGreetingDone = true;  // Solo saluda una vez hasta que se ausente
+                        } else if (sensorData === "0") {
+                            isGreetingDone = false;  // Resetear cuando no haya presencia
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error en la conexión:", error);
+            } finally {
+                if (reader) {
+                    reader.releaseLock();
+                }
+            }
+        }
+
+        // Función para saludar al usuario
+        function greetUser() {
+            const speech = new SpeechSynthesisUtterance();
+            speech.lang = 'es-ES';
+            speech.text = 'Hola, bienvenido!';
+            window.speechSynthesis.speak(speech);
+            document.getElementById('message').textContent = 'Saludando...';
+            document.getElementById('message').style.color = 'green';
+        }
+    </script>
+</body>
+</html>
+
