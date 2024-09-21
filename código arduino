@@ -1,42 +1,64 @@
-// Definir los pines para el sensor HC-SR04
-const int triggerPin = 9;  // Pin para el Trigger del HC-SR04
-const int echoPin = 10;    // Pin para el Echo del HC-SR04
-
-// Variables
+const int trigPin = 9; // Pin del disparo del sensor ultrasónico
+const int echoPin = 10; // Pin del eco del sensor ultrasónico
 long duration;
 int distance;
-int maxDistance = 400;     // Distancia máxima en cm (400 cm = 4 metros)
-int detectionThreshold = 100;  // Distancia a partir de la cual consideramos que se detectó presencia
+int previousDistance = 0;
+int threshold = 30;  // Margen de variación para detectar movimiento significativo
+bool isGreeting = false;
+
+const int numReadings = 2; // Número de lecturas para el promedio
+int readings[numReadings]; // Arreglo para almacenar las lecturas
+int readIndex = 0; // Índice de la lectura actual
+int total = 0; // Suma total de las lecturas
+int averageDistance = 0; // Distancia promedio
 
 void setup() {
-  // Iniciar la comunicación serial
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
   Serial.begin(9600);
   
-  // Configurar los pines
-  pinMode(triggerPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+  // Inicializar el arreglo de lecturas
+  for (int i = 0; i < numReadings; i++) {
+    readings[i] = 0;
+  }
 }
 
 void loop() {
-  // Enviar un pulso de Trigger de 10us para iniciar la medición
-  digitalWrite(triggerPin, LOW);
+  // Enviar pulso ultrasónico
+  digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
-  digitalWrite(triggerPin, HIGH);
+  digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
-  digitalWrite(triggerPin, LOW);
-  
-  // Leer la duración del pulso en el pin Echo
-  duration = pulseIn(echoPin, HIGH, maxDistance * 58);  // Limitar el tiempo de espera para distancias largas
-  
-  // Convertir la duración a distancia en cm
+  digitalWrite(trigPin, LOW);
+
+  // Leer el tiempo de vuelta del eco
+  duration = pulseIn(echoPin, HIGH);
+
+  // Calcular distancia en cm
   distance = duration * 0.034 / 2;
-  
-  // Si la distancia está dentro del rango detectable, enviamos el valor correspondiente
-  if (distance > 0 && distance <= detectionThreshold) {
-    Serial.println("1");  // Presencia detectada
-  } else if (distance > detectionThreshold) {
-    Serial.println("0");  // No hay presencia
+
+  // Comparar la distancia actual con la anterior para detectar si se acerca o aleja
+  if (distance > 0 && distance < 300) { // Si está en un rango válido
+    // Actualizar la suma y el índice para el promedio
+    total -= readings[readIndex]; // Restar la lectura más antigua
+    readings[readIndex] = distance; // Guardar la nueva lectura
+    total += readings[readIndex]; // Sumar la nueva lectura
+    readIndex = (readIndex + 1) % numReadings; // Avanzar al siguiente índice
+
+    // Calcular la distancia promedio
+    averageDistance = total / numReadings;
+
+    if (averageDistance < previousDistance - threshold && !isGreeting) {
+      // Persona se está acercando
+      Serial.println("1");  // Enviar señal de saludo
+      isGreeting = true;
+    } else if (averageDistance > previousDistance + threshold && isGreeting) {
+      // Persona se está alejando
+      Serial.println("2");  // Enviar señal de despedida
+      isGreeting = false;
+    }
   }
 
-  // No hay retraso en el loop, lo que permite lecturas continuas
+  previousDistance = averageDistance;  // Actualizar la distancia anterior
+  delay(400);  // Dar tiempo para la siguiente lectura
 }
