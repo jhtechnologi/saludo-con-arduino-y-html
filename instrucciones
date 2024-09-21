@@ -1,0 +1,23 @@
+Saludos cordiales:
+ 
+para  utilizar el código  solo debes  tener a mano  
+un Arduino  uno  
+un módulo sensor de ultrasonido  HC-RS04    
+cuatro cables para la conexión del sensor  
+Google cromé instalado 
+
+1: conecta el sensor de ultrasonido a los pines  correspondientes  
+trig = pin 9
+Echo = pin 10
+vcc = 5v
+Gnd = Gnd
+
+2: Conecta el Arduino al  ordenador  por USB
+3: instala  el driver del Arduino si no lo tienes instalado  
+aquí les dejo el driver para el Arduino uno CH340
+4: sube el código al Arduino 
+5: abre el documento HTML  y selecciona conectar,  se abrirá un mensaje emergente 
+6: selecciona el puerto com de tu Arduino y conéctate 
+
+
+ya podrás probar el sistema 
